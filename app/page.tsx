@@ -84,6 +84,7 @@ export default function Home() {
   const [studioError, setStudioError] = useState("");
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [draftsLoaded, setDraftsLoaded] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const filters = ["All work", "SEO", "Content", "Video"];
   const allProjects = portfolioProjects;
   const visibleProjects =
@@ -118,6 +119,25 @@ export default function Home() {
     }
   }, [draftsLoaded, portfolioProjects]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    async function checkOwnerAccess() {
+      try {
+        const response = await fetch("/api/owner", { cache: "no-store" });
+        const data = (await response.json()) as { isOwner?: boolean };
+        if (isActive) setIsOwner(data.isOwner === true);
+      } catch {
+        if (isActive) setIsOwner(false);
+      }
+    }
+
+    void checkOwnerAccess();
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   function resetWorkDraft() {
     setDraftTitle("");
     setDraftClient("");
@@ -129,6 +149,7 @@ export default function Home() {
   }
 
   function openNewWorkStudio() {
+    if (!isOwner) return;
     resetWorkDraft();
     setStudioOpen(true);
   }
@@ -139,7 +160,7 @@ export default function Home() {
   }
 
   function handleEditWork(project: PortfolioProject) {
-    if (!project.id) return;
+    if (!isOwner || !project.id) return;
     setDraftTitle(project.title);
     setDraftClient(project.client === "Personal work" ? "" : project.client);
     setDraftDescription(project.copy);
@@ -151,12 +172,14 @@ export default function Home() {
   }
 
   function handleDeleteWork(projectId: string) {
+    if (!isOwner) return;
     if (!window.confirm("Delete this work from your portfolio?")) return;
     setPortfolioProjects((current) => current.filter((project) => project.id !== projectId));
     if (editingProjectId === projectId) closeWorkStudio();
   }
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
+    if (!isOwner) return;
     const photo = event.target.files?.[0];
     if (!photo) return;
     if (!photo.type.startsWith("image/")) {
@@ -174,6 +197,7 @@ export default function Home() {
 
   function handleAddWork(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!isOwner) return;
     if (!draftPhoto) {
       setStudioError("Add a work photo before saving your draft.");
       return;
@@ -337,11 +361,13 @@ export default function Home() {
                 </button>
               ))}
             </div>
-            <button className="add-work-button" type="button" onClick={studioOpen ? closeWorkStudio : openNewWorkStudio} aria-expanded={studioOpen} aria-controls="work-studio">
-              {studioOpen ? "Close studio" : "Add your work"} <span>+</span>
-            </button>
+            {isOwner && (
+              <button className="add-work-button" type="button" onClick={studioOpen ? closeWorkStudio : openNewWorkStudio} aria-expanded={studioOpen} aria-controls="work-studio">
+                {studioOpen ? "Close studio" : "Add your work"} <span>+</span>
+              </button>
+            )}
           </div>
-          {studioOpen && (
+          {isOwner && studioOpen && (
             <form className="work-studio" id="work-studio" onSubmit={handleAddWork}>
               <div className="studio-heading">
                 <div><span>Portfolio studio</span><h3>{editingProjectId ? "Update your work details." : "Add a photo and your edited-video link."}</h3></div>
@@ -381,7 +407,7 @@ export default function Home() {
                 <p className="project-copy">{project.copy}</p>
                 <div className="project-result"><span>Outcome</span><b>{project.result}</b></div>
                 {project.videoUrl && <a className="video-link" href={project.videoUrl} target="_blank" rel="noreferrer">Watch edited video <span>↗</span></a>}
-                {project.id && (
+                {isOwner && project.id && (
                   <div className="project-manage" aria-label={`Manage ${project.title}`}>
                     <button type="button" onClick={() => handleEditWork(project)}>Edit</button>
                     <button className="delete-work" type="button" onClick={() => handleDeleteWork(project.id!)}>Delete</button>
@@ -460,7 +486,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="footer page-shell"><a className="brand" href="#top"><span>AP</span><small>Digital marketing</small></a><p>© 2026 Anand Philip. Crafted with purpose.</p><a href="#top">Back to top ↑</a></footer>
+      <footer className="footer page-shell"><a className="brand" href="#top"><span>AP</span><small>Digital marketing</small></a><p>© 2026 Anand Philip. Crafted with purpose.</p><a className="owner-access" href={isOwner ? "/signout-with-chatgpt?return_to=%2F" : "/signin-with-chatgpt?return_to=%2F"}>{isOwner ? "Owner mode" : "Owner access"}</a><a href="#top">Back to top ↑</a></footer>
     </main>
   );
 }

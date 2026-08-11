@@ -70,4 +70,6 @@ h1,h2,h3,p { margin-top: 0; } h1,h2,h3 { text-wrap: balance; }.hero h1 { max-wid
 .project-manage button:hover { color: white; border-color: #272531; background: #272531; }
 .project-manage .delete-work { color: #b33143; border-color: rgba(179,49,67,.35); }
 .project-manage .delete-work:hover { color: white; border-color: #b33143; background: #b33143; }
+.footer .owner-access { margin-left: auto; color: var(--muted); opacity: .65; }
+.footer .owner-access:hover { color: var(--violet); opacity: 1; }
 @media (max-width: 800px) { .work-controls,.studio-heading,.studio-footer { flex-direction: column; align-items: stretch; }.filter-row { margin-bottom: 0; }.studio-grid { grid-template-columns: 1fr; }.studio-upload { min-height: 190px; }.studio-footer .button { width: 100%; } }
