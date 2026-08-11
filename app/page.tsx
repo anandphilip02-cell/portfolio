@@ -85,6 +85,11 @@ export default function Home() {
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [ownerLoginOpen, setOwnerLoginOpen] = useState(false);
+  const [ownerUsername, setOwnerUsername] = useState("");
+  const [ownerPassword, setOwnerPassword] = useState("");
+  const [ownerLoginError, setOwnerLoginError] = useState("");
+  const [ownerLoginPending, setOwnerLoginPending] = useState(false);
   const filters = ["All work", "SEO", "Content", "Video"];
   const allProjects = portfolioProjects;
   const visibleProjects =
@@ -109,6 +114,39 @@ export default function Home() {
       setDraftsLoaded(true);
     }
   }, []);
+
+  async function handleOwnerLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setOwnerLoginError("");
+    setOwnerLoginPending(true);
+
+    try {
+      const response = await fetch("/api/owner/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: ownerUsername, password: ownerPassword }),
+      });
+      const data = (await response.json()) as { isOwner?: boolean; error?: string };
+
+      if (!response.ok || data.isOwner !== true) {
+        throw new Error(data.error || "Unable to sign in.");
+      }
+
+      setIsOwner(true);
+      setOwnerPassword("");
+      setOwnerLoginOpen(false);
+    } catch (error) {
+      setOwnerLoginError(error instanceof Error ? error.message : "Unable to sign in.");
+    } finally {
+      setOwnerLoginPending(false);
+    }
+  }
+
+  async function handleOwnerLogout() {
+    await fetch("/api/owner/logout", { method: "POST" });
+    setIsOwner(false);
+    closeWorkStudio();
+  }
 
   useEffect(() => {
     if (!draftsLoaded) return;
@@ -241,6 +279,21 @@ export default function Home() {
     <main className={`site ${isDark ? "dark" : "light"}`}>
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
+
+      {ownerLoginOpen && !isOwner && (
+        <div className="owner-login-backdrop" role="presentation">
+          <form className="owner-login" onSubmit={handleOwnerLogin} aria-labelledby="owner-login-title">
+            <button className="owner-login-close" type="button" onClick={() => setOwnerLoginOpen(false)} aria-label="Close owner login">×</button>
+            <span>Private portfolio controls</span>
+            <h2 id="owner-login-title">Owner sign in</h2>
+            <p>Sign in to add, edit, or delete your work. Visitors cannot access these controls.</p>
+            <label>Username<input autoComplete="username" required value={ownerUsername} onChange={(event) => setOwnerUsername(event.target.value)} /></label>
+            <label>Password<input autoComplete="current-password" required type="password" value={ownerPassword} onChange={(event) => setOwnerPassword(event.target.value)} /></label>
+            {ownerLoginError && <p className="owner-login-error" role="alert">{ownerLoginError}</p>}
+            <button className="button button-primary" type="submit" disabled={ownerLoginPending}>{ownerLoginPending ? "Signing in..." : "Sign in"}</button>
+          </form>
+        </div>
+      )}
 
       <header className="topbar page-shell">
         <a className="brand" href="#top" aria-label="Anand Philip home">
@@ -486,7 +539,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="footer page-shell"><a className="brand" href="#top"><span>AP</span><small>Digital marketing</small></a><p>© 2026 Anand Philip. Crafted with purpose.</p><a className="owner-access" href={isOwner ? "/signout-with-chatgpt?return_to=%2F" : "/signin-with-chatgpt?return_to=%2F"}>{isOwner ? "Owner mode" : "Owner access"}</a><a href="#top">Back to top ↑</a></footer>
+      <footer className="footer page-shell"><a className="brand" href="#top"><span>AP</span><small>Digital marketing</small></a><p>© 2026 Anand Philip. Crafted with purpose.</p><button className="owner-access" type="button" onClick={isOwner ? handleOwnerLogout : () => setOwnerLoginOpen(true)}>{isOwner ? "Sign out" : "Owner access"}</button><a href="#top">Back to top ↑</a></footer>
     </main>
   );
 }

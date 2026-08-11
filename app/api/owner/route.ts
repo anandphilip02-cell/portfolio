@@ -1,17 +1,9 @@
-import { getChatGPTUser } from "../../chatgpt-auth";
+import { hasOwnerSession } from "../../owner-session";
 
 export const dynamic = "force-dynamic";
 
-const ownerEmails = new Set(
-  (process.env.PORTFOLIO_OWNER_EMAILS ?? "ronak20039@gmail.com")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean),
-);
-
-export async function GET() {
-  const user = await getChatGPTUser();
-  const isOwner = Boolean(user && ownerEmails.has(user.email.toLowerCase()));
+export async function GET(request: Request) {
+  const isOwner = await hasOwnerSession(request);
 
   return Response.json(
     { isOwner },
