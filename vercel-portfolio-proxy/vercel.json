@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "https://anand-philip-marketing-portfolio.round-egret-4062.chatgpt.site/$1"
+    }
+  ]
+}
