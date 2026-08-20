@@ -1,12 +1,12 @@
 const PORTFOLIO_ORIGIN = "https://anand-philip-marketing-portfolio.round-egret-4062.chatgpt.site";
 
-export const config = {
+const config = {
   api: {
     bodyParser: false,
   },
 };
 
-export default async function handler(request, response) {
+async function handler(request, response) {
   const requestedPath = Array.isArray(request.query.path) ? request.query.path.join("/") : request.query.path || "";
   const incomingUrl = new URL(request.url, "https://anandphilipportfolio.vercel.app");
   const upstreamUrl = new URL(`/${requestedPath}`, PORTFOLIO_ORIGIN);
@@ -45,3 +45,6 @@ export default async function handler(request, response) {
     return response.status(502).json({ error: "Portfolio service is temporarily unavailable." });
   }
 }
+
+module.exports = handler;
+module.exports.config = config;
