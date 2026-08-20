@@ -1,12 +1,13 @@
-import { hasOwnerSession } from "../../owner-session";
+import { getOwnerConfig, hasOwnerSession } from "../../owner-session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const isOwner = await hasOwnerSession(request);
+  const isConfigured = getOwnerConfig() !== null;
+  const isOwner = isConfigured && await hasOwnerSession(request);
 
   return Response.json(
-    { isOwner },
+    { isConfigured, isOwner },
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }

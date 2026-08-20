@@ -70,6 +70,10 @@ const certifications = [
   "Google Analytics learning path",
 ];
 
+const portfolioMediaUrl = "https://anand-philip-marketing-portfolio.round-egret-4062.chatgpt.site";
+const headshotUrl = `${portfolioMediaUrl}/images/anand-philip-headshot.jpeg`;
+const resumeUrl = `${portfolioMediaUrl}/Anand-Philip-Resume.pdf`;
+
 export default function Home() {
   const [isDark, setIsDark] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -85,6 +89,7 @@ export default function Home() {
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [ownerLoginEnabled, setOwnerLoginEnabled] = useState(false);
   const [ownerLoginOpen, setOwnerLoginOpen] = useState(false);
   const [ownerUsername, setOwnerUsername] = useState("");
   const [ownerPassword, setOwnerPassword] = useState("");
@@ -163,10 +168,16 @@ export default function Home() {
     async function checkOwnerAccess() {
       try {
         const response = await fetch("/api/owner", { cache: "no-store" });
-        const data = (await response.json()) as { isOwner?: boolean };
-        if (isActive) setIsOwner(data.isOwner === true);
+        const data = (await response.json()) as { isConfigured?: boolean; isOwner?: boolean };
+        if (isActive) {
+          setOwnerLoginEnabled(data.isConfigured === true);
+          setIsOwner(data.isOwner === true);
+        }
       } catch {
-        if (isActive) setIsOwner(false);
+        if (isActive) {
+          setOwnerLoginEnabled(false);
+          setIsOwner(false);
+        }
       }
     }
 
@@ -338,7 +349,7 @@ export default function Home() {
           </p>
           <div className="hero-actions">
             <a className="button button-primary" href="#work">Explore selected work <span>→</span></a>
-            <a className="button button-quiet" href="/Anand-Philip-Resume.pdf" download>Download resume <span>↓</span></a>
+            <a className="button button-quiet" href={resumeUrl} download>Download resume <span>↓</span></a>
           </div>
           <div className="trust-row">
             <span>SEO</span><i />
@@ -353,7 +364,7 @@ export default function Home() {
           <div className="hero-orbit orbit-two" />
           <div className="portrait-backdrop" />
           <div className="portrait-card">
-            <img src="/images/anand-philip-headshot.jpeg" alt="Anand Philip in a formal suit" />
+            <img src={headshotUrl} alt="Anand Philip in a formal suit" />
           </div>
           <div className="metric-float metric-top"><strong>2022</strong><span>marketing journey began</span></div>
           <div className="metric-float metric-bottom"><strong>01</strong><span>keyword ranked first</span></div>
@@ -455,7 +466,27 @@ export default function Home() {
                 </div>
                 <div className="project-info">
                   <div><p>{project.client} <i>•</i> {project.year}</p><h3>{project.title}</h3></div>
-                  <button className="circle-button" aria-label={`View ${project.title}`}>↗</button>
+                  {project.videoUrl ? (
+                    <a
+                      className="circle-button"
+                      href={project.videoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`Open ${project.title} video in a new tab`}
+                    >
+                      ↗
+                    </a>
+                  ) : (
+                    <button
+                      className="circle-button"
+                      type="button"
+                      disabled
+                      aria-label={`A video link has not been added for ${project.title}`}
+                      title="Add a video link to activate this button"
+                    >
+                      ↗
+                    </button>
+                  )}
                 </div>
                 <p className="project-copy">{project.copy}</p>
                 <div className="project-result"><span>Outcome</span><b>{project.result}</b></div>
@@ -535,11 +566,11 @@ export default function Home() {
       <section className="contact section" id="contact">
         <div className="page-shell contact-shell">
           <div className="section-label"><span>06</span> Contact</div>
-          <div className="contact-grid"><div><p className="contact-kicker">Have a project in mind?</p><h2>Let&apos;s make your next move <em>count.</em></h2></div><div className="contact-actions"><a href="mailto:anandphilip02@gmail.com" className="email-link">anandphilip02@gmail.com <span>↗</span></a><div className="contact-meta"><a href="tel:+919961336265">+91 99613 36265</a><span>Kottayam, Kerala, India</span></div><div className="social-row"><a href="https://wa.me/919961336265" target="_blank" rel="noreferrer">WhatsApp</a><a href="mailto:anandphilip02@gmail.com">Email</a><a href="/Anand-Philip-Resume.pdf" download>Resume</a></div></div></div>
+          <div className="contact-grid"><div><p className="contact-kicker">Have a project in mind?</p><h2>Let&apos;s make your next move <em>count.</em></h2></div><div className="contact-actions"><a href="mailto:anandphilip02@gmail.com" className="email-link">anandphilip02@gmail.com <span>↗</span></a><div className="contact-meta"><a href="tel:+919961336265">+91 99613 36265</a><span>Kottayam, Kerala, India</span></div><div className="social-row"><a href="https://wa.me/919961336265" target="_blank" rel="noreferrer">WhatsApp</a><a href="mailto:anandphilip02@gmail.com">Email</a><a href={resumeUrl} download>Resume</a></div></div></div>
         </div>
       </section>
 
-      <footer className="footer page-shell"><a className="brand" href="#top"><span>AP</span><small>Digital marketing</small></a><p>© 2026 Anand Philip. Crafted with purpose.</p><button className="owner-access" type="button" onClick={isOwner ? handleOwnerLogout : () => setOwnerLoginOpen(true)}>{isOwner ? "Sign out" : "Owner access"}</button><a href="#top">Back to top ↑</a></footer>
+      <footer className="footer page-shell"><a className="brand" href="#top"><span>AP</span><small>Digital marketing</small></a><p>© 2026 Anand Philip. Crafted with purpose.</p>{ownerLoginEnabled && <button className="owner-access" type="button" onClick={isOwner ? handleOwnerLogout : () => setOwnerLoginOpen(true)}>{isOwner ? "Sign out" : "Owner access"}</button>}<a href="#top">Back to top ↑</a></footer>
     </main>
   );
 }
