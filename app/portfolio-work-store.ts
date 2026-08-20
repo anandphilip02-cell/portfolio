@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 
-export type WorkCategory = "SEO" | "Content" | "Video";
+export type WorkCategory = "SEO" | "Content" | "Video" | "Advertising" | "Google Ads" | "Meta Ads";
 
 export type PortfolioWork = {
   id: string;
@@ -186,7 +186,7 @@ async function storePhoto(id: string, photo: File) {
 }
 
 export function isWorkCategory(value: string): value is WorkCategory {
-  return value === "SEO" || value === "Content" || value === "Video";
+  return ["SEO", "Content", "Video", "Advertising", "Google Ads", "Meta Ads"].includes(value);
 }
 
 export async function listPortfolioWorks() {

@@ -35,7 +35,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const photo = data.get("photo");
 
     if (!title) return Response.json({ error: "Add a project title." }, { status: 400 });
-    if (!isWorkCategory(category)) return Response.json({ error: "Choose SEO, Content, or Video." }, { status: 400 });
+    if (!isWorkCategory(category)) return Response.json({ error: "Choose a work category." }, { status: 400 });
     if (!videoUrl) return Response.json({ error: "Paste a valid video link." }, { status: 400 });
     if (photo instanceof File && photo.size && (!photo.type.startsWith("image/") || photo.size > 5 * 1024 * 1024)) {
       return Response.json({ error: "Use an image smaller than 5 MB." }, { status: 400 });

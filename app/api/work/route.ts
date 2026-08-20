@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     const legacyId = formText(data, "legacyId");
 
     if (!title) return Response.json({ error: "Add a project title." }, { status: 400 });
-    if (!isWorkCategory(category)) return Response.json({ error: "Choose SEO, Content, or Video." }, { status: 400 });
+    if (!isWorkCategory(category)) return Response.json({ error: "Choose a work category." }, { status: 400 });
     if (!videoUrl) return Response.json({ error: "Paste a valid video link." }, { status: 400 });
     if (!(photo instanceof File) || !photo.size || !photo.type.startsWith("image/")) {
       return Response.json({ error: "Add an image for this work." }, { status: 400 });

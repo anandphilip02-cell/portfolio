@@ -16,6 +16,8 @@ type PortfolioProject = {
   isDraft?: boolean;
 };
 
+const workCategories = ["SEO", "Content", "Video", "Advertising", "Google Ads", "Meta Ads"] as const;
+
 const skills = [
   { name: "Search engine optimization", tag: "SEO", level: "Advanced" },
   { name: "Google Ads", tag: "Paid media", level: "Working knowledge" },
@@ -100,7 +102,7 @@ export default function Home() {
   const [ownerPassword, setOwnerPassword] = useState("");
   const [ownerLoginError, setOwnerLoginError] = useState("");
   const [ownerLoginPending, setOwnerLoginPending] = useState(false);
-  const filters = ["All work", "SEO", "Content", "Video"];
+  const filters = ["All work", ...workCategories];
   const allProjects = portfolioProjects;
   const visibleProjects =
     activeFilter === "All work"
@@ -287,7 +289,7 @@ export default function Home() {
         formData.set("legacyId", project.id);
         formData.set("title", project.title || "Portfolio work");
         formData.set("client", project.client || "Personal work");
-        formData.set("category", ["SEO", "Content", "Video"].includes(project.category) ? project.category : "Video");
+        formData.set("category", workCategories.includes(project.category as (typeof workCategories)[number]) ? project.category : "Video");
         formData.set("copy", project.copy || "A portfolio project with an edited video.");
         formData.set("videoUrl", project.videoUrl);
         formData.set("photo", photo);
@@ -565,9 +567,7 @@ export default function Home() {
                   <label>Client or brand<input value={draftClient} onChange={(event) => setDraftClient(event.target.value)} placeholder="e.g. Personal work" /></label>
                   <label>Category
                     <select value={draftCategory} onChange={(event) => setDraftCategory(event.target.value)}>
-                      <option value="SEO">SEO</option>
-                      <option value="Content">Content</option>
-                      <option value="Video">Video</option>
+                      {workCategories.map((category) => <option key={category} value={category}>{category}</option>)}
                     </select>
                   </label>
                   <label className="studio-wide">Edited video link<input required type="url" value={draftVideoUrl} onChange={(event) => setDraftVideoUrl(event.target.value)} placeholder="https://youtube.com/... or Instagram/Vimeo/Drive link" /></label>
