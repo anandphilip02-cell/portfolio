@@ -202,9 +202,11 @@ export async function listPortfolioWorks() {
   return result.results.map(toPortfolioWork);
 }
 
-export async function createPortfolioWork(details: WorkDetails, photo: File) {
+export async function createPortfolioWork(details: WorkDetails, photo: File, legacyId?: string) {
   await ensureSchema();
-  const id = crypto.randomUUID();
+  const id = legacyId || crypto.randomUUID();
+  const existing = await findStoredWork(id);
+  if (existing) return toPortfolioWork(existing);
   const now = new Date().toISOString();
   const imageKey = await storePhoto(id, photo);
 

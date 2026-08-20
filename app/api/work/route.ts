@@ -45,6 +45,7 @@ export async function POST(request: Request) {
     const copy = formText(data, "copy");
     const videoUrl = validVideoUrl(formText(data, "videoUrl"));
     const photo = data.get("photo");
+    const legacyId = formText(data, "legacyId");
 
     if (!title) return Response.json({ error: "Add a project title." }, { status: 400 });
     if (!isWorkCategory(category)) return Response.json({ error: "Choose SEO, Content, or Video." }, { status: 400 });
@@ -56,7 +57,11 @@ export async function POST(request: Request) {
       return Response.json({ error: "Use an image smaller than 5 MB." }, { status: 400 });
     }
 
-    const project = await createPortfolioWork({ category, title, client, copy, videoUrl }, photo);
+    if (legacyId && !/^work-[a-zA-Z0-9_-]{1,80}$/.test(legacyId)) {
+      return Response.json({ error: "This saved project cannot be imported." }, { status: 400 });
+    }
+
+    const project = await createPortfolioWork({ category, title, client, copy, videoUrl }, photo, legacyId || undefined);
     return Response.json({ project }, { status: 201 });
   } catch (error) {
     return Response.json({ error: apiError(error) }, { status: 500 });

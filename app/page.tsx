@@ -90,6 +90,9 @@ export default function Home() {
   const [studioError, setStudioError] = useState("");
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [workSavePending, setWorkSavePending] = useState(false);
+  const [legacyWorks, setLegacyWorks] = useState<PortfolioProject[]>([]);
+  const [legacyImportPending, setLegacyImportPending] = useState(false);
+  const [legacyImportMessage, setLegacyImportMessage] = useState("");
   const [isOwner, setIsOwner] = useState(false);
   const [ownerLoginEnabled, setOwnerLoginEnabled] = useState(false);
   const [ownerLoginOpen, setOwnerLoginOpen] = useState(false);
@@ -123,6 +126,32 @@ export default function Home() {
     return () => {
       isActive = false;
     };
+  }, []);
+
+  useEffect(() => {
+    try {
+      const migratedIds = new Set<string>(JSON.parse(window.localStorage.getItem("anand-portfolio-work-migrated") || "[]"));
+      const savedCollections = ["anand-portfolio-projects", "anand-portfolio-work"]
+        .map((key) => JSON.parse(window.localStorage.getItem(key) || "[]"))
+        .filter(Array.isArray)
+        .flat() as PortfolioProject[];
+      const uniqueWorks = new Map<string, PortfolioProject>();
+
+      savedCollections.forEach((project) => {
+        if (
+          project?.id?.startsWith("work-") &&
+          project.image?.startsWith("data:image/") &&
+          project.videoUrl &&
+          !migratedIds.has(project.id)
+        ) {
+          uniqueWorks.set(project.id, project);
+        }
+      });
+
+      setLegacyWorks([...uniqueWorks.values()]);
+    } catch {
+      // Browser-only work remains untouched if it cannot be read safely.
+    }
   }, []);
 
   async function handleOwnerLogin(event: FormEvent<HTMLFormElement>) {
@@ -234,6 +263,67 @@ export default function Home() {
     } catch (error) {
       setStudioError(error instanceof Error ? error.message : "Unable to delete this work.");
     }
+  }
+
+  async function handleImportLegacyWorks() {
+    if (!isOwner || !legacyWorks.length) return;
+
+    setLegacyImportPending(true);
+    setLegacyImportMessage("");
+    const importedIds: string[] = [];
+    let skipped = 0;
+
+    for (const project of legacyWorks) {
+      try {
+        if (!project.id || !project.image?.startsWith("data:image/") || !project.videoUrl) {
+          skipped += 1;
+          continue;
+        }
+
+        const imageResponse = await fetch(project.image);
+        const imageBlob = await imageResponse.blob();
+        const photo = new File([imageBlob], `${project.id}.jpg`, { type: imageBlob.type || "image/jpeg" });
+        const formData = new FormData();
+        formData.set("legacyId", project.id);
+        formData.set("title", project.title || "Portfolio work");
+        formData.set("client", project.client || "Personal work");
+        formData.set("category", ["SEO", "Content", "Video"].includes(project.category) ? project.category : "Video");
+        formData.set("copy", project.copy || "A portfolio project with an edited video.");
+        formData.set("videoUrl", project.videoUrl);
+        formData.set("photo", photo);
+
+        const response = await fetch("/api/work", { method: "POST", body: formData });
+        if (!response.ok) throw new Error("Import failed");
+        importedIds.push(project.id);
+      } catch {
+        skipped += 1;
+      }
+    }
+
+    if (importedIds.length) {
+      try {
+        const storedIds = JSON.parse(window.localStorage.getItem("anand-portfolio-work-migrated") || "[]") as string[];
+        window.localStorage.setItem("anand-portfolio-work-migrated", JSON.stringify([...new Set([...storedIds, ...importedIds])]));
+      } catch {
+        // The online copy is still saved even when the browser marker cannot be stored.
+      }
+      setLegacyWorks((current) => current.filter((project) => !importedIds.includes(project.id || "")));
+
+      try {
+        const response = await fetch("/api/work", { cache: "no-store" });
+        const data = (await response.json()) as { projects?: PortfolioProject[] };
+        if (response.ok && Array.isArray(data.projects)) setPortfolioProjects(data.projects);
+      } catch {
+        // The next page load will fetch the stored online collection.
+      }
+    }
+
+    setLegacyImportMessage(
+      importedIds.length
+        ? `${importedIds.length} saved ${importedIds.length === 1 ? "project is" : "projects are"} now visible online.${skipped ? ` ${skipped} could not be imported.` : ""}`
+        : "No browser-saved projects could be imported.",
+    );
+    setLegacyImportPending(false);
   }
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
@@ -446,11 +536,19 @@ export default function Home() {
               ))}
             </div>
             {isOwner && (
-              <button className="add-work-button" type="button" onClick={studioOpen ? closeWorkStudio : openNewWorkStudio} aria-expanded={studioOpen} aria-controls="work-studio">
-                {studioOpen ? "Close studio" : "Add your work"} <span>+</span>
-              </button>
+              <div className="owner-work-actions">
+                {legacyWorks.length > 0 && (
+                  <button className="import-work-button" type="button" onClick={handleImportLegacyWorks} disabled={legacyImportPending}>
+                    {legacyImportPending ? "Importing saved work..." : `Import ${legacyWorks.length} saved ${legacyWorks.length === 1 ? "project" : "projects"}`}
+                  </button>
+                )}
+                <button className="add-work-button" type="button" onClick={studioOpen ? closeWorkStudio : openNewWorkStudio} aria-expanded={studioOpen} aria-controls="work-studio">
+                  {studioOpen ? "Close studio" : "Add your work"} <span>+</span>
+                </button>
+              </div>
             )}
           </div>
+          {isOwner && legacyImportMessage && <p className="legacy-import-message" role="status">{legacyImportMessage}</p>}
           {isOwner && studioOpen && (
             <form className="work-studio" id="work-studio" onSubmit={handleAddWork}>
               <div className="studio-heading">
