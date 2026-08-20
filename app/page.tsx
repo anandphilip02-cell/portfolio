@@ -85,10 +85,11 @@ export default function Home() {
   const [draftDescription, setDraftDescription] = useState("");
   const [draftVideoUrl, setDraftVideoUrl] = useState("");
   const [draftPhoto, setDraftPhoto] = useState("");
+  const [draftPhotoFile, setDraftPhotoFile] = useState<File | null>(null);
   const [draftCategory, setDraftCategory] = useState("Video");
   const [studioError, setStudioError] = useState("");
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
-  const [draftsLoaded, setDraftsLoaded] = useState(false);
+  const [workSavePending, setWorkSavePending] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [ownerLoginEnabled, setOwnerLoginEnabled] = useState(false);
   const [ownerLoginOpen, setOwnerLoginOpen] = useState(false);
@@ -104,21 +105,24 @@ export default function Home() {
       : allProjects.filter((project) => project.category === activeFilter);
 
   useEffect(() => {
-    try {
-      const savedProjects = window.localStorage.getItem("anand-portfolio-projects");
-      const savedDrafts = window.localStorage.getItem("anand-portfolio-work");
-      if (savedProjects) {
-        const parsedProjects = JSON.parse(savedProjects) as PortfolioProject[];
-        if (Array.isArray(parsedProjects)) setPortfolioProjects(parsedProjects);
-      } else if (savedDrafts) {
-        const parsedDrafts = JSON.parse(savedDrafts) as PortfolioProject[];
-        if (Array.isArray(parsedDrafts)) setPortfolioProjects([...parsedDrafts, ...projects]);
+    let isActive = true;
+
+    async function loadPortfolioWorks() {
+      try {
+        const response = await fetch("/api/work", { cache: "no-store" });
+        const data = (await response.json()) as { projects?: PortfolioProject[] };
+        if (isActive && response.ok && Array.isArray(data.projects)) {
+          setPortfolioProjects(data.projects);
+        }
+      } catch {
+        // The built-in showcase remains visible while the online collection is unavailable.
       }
-    } catch {
-      // The portfolio remains usable if local browser storage is unavailable.
-    } finally {
-      setDraftsLoaded(true);
     }
+
+    void loadPortfolioWorks();
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   async function handleOwnerLogin(event: FormEvent<HTMLFormElement>) {
@@ -155,15 +159,6 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (!draftsLoaded) return;
-    try {
-      window.localStorage.setItem("anand-portfolio-projects", JSON.stringify(portfolioProjects));
-    } catch {
-      setStudioError("This image is too large to save in this browser. Try a smaller photo.");
-    }
-  }, [draftsLoaded, portfolioProjects]);
-
-  useEffect(() => {
     let isActive = true;
 
     async function checkOwnerAccess() {
@@ -194,6 +189,7 @@ export default function Home() {
     setDraftDescription("");
     setDraftVideoUrl("");
     setDraftPhoto("");
+    setDraftPhotoFile(null);
     setDraftCategory("Video");
     setStudioError("");
     setEditingProjectId(null);
@@ -217,17 +213,27 @@ export default function Home() {
     setDraftDescription(project.copy);
     setDraftVideoUrl(project.videoUrl || "");
     setDraftPhoto(project.image || "");
+    setDraftPhotoFile(null);
     setDraftCategory(project.category);
     setStudioError("");
     setEditingProjectId(project.id);
     setStudioOpen(true);
   }
 
-  function handleDeleteWork(projectId: string) {
+  async function handleDeleteWork(projectId: string) {
     if (!isOwner) return;
     if (!window.confirm("Delete this work from your portfolio?")) return;
-    setPortfolioProjects((current) => current.filter((project) => project.id !== projectId));
-    if (editingProjectId === projectId) closeWorkStudio();
+
+    try {
+      const response = await fetch(`/api/work/${encodeURIComponent(projectId)}`, { method: "DELETE" });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error || "Unable to delete this work.");
+
+      setPortfolioProjects((current) => current.filter((project) => project.id !== projectId));
+      if (editingProjectId === projectId) closeWorkStudio();
+    } catch (error) {
+      setStudioError(error instanceof Error ? error.message : "Unable to delete this work.");
+    }
   }
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
@@ -242,16 +248,17 @@ export default function Home() {
     const reader = new FileReader();
     reader.onload = () => {
       setDraftPhoto(String(reader.result));
+      setDraftPhotoFile(photo);
       setStudioError("");
     };
     reader.readAsDataURL(photo);
   }
 
-  function handleAddWork(event: FormEvent<HTMLFormElement>) {
+  async function handleAddWork(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isOwner) return;
-    if (!draftPhoto) {
-      setStudioError("Add a work photo before saving your draft.");
+    if (!editingProjectId && !draftPhotoFile) {
+      setStudioError("Add a work photo before saving your project.");
       return;
     }
 
@@ -264,29 +271,39 @@ export default function Home() {
       return;
     }
 
-    const workDetails: PortfolioProject = {
-      id: editingProjectId || "work-" + Date.now(),
-      category: draftCategory,
-      title: draftTitle.trim(),
-      client: draftClient.trim() || "Personal work",
-      year: "Local draft",
-      copy: draftDescription.trim() || "An edited video ready to include in the portfolio.",
-      result: "Video link added",
-      className: "project-uploaded",
-      image: draftPhoto,
-      videoUrl: videoUrl.toString(),
-      isDraft: true,
-    };
+    const formData = new FormData();
+    formData.set("title", draftTitle.trim());
+    formData.set("client", draftClient.trim());
+    formData.set("category", draftCategory);
+    formData.set("copy", draftDescription.trim());
+    formData.set("videoUrl", videoUrl.toString());
+    if (draftPhotoFile) formData.set("photo", draftPhotoFile);
 
-    setPortfolioProjects((current) =>
-      editingProjectId
-        ? current.map((project) => (project.id === editingProjectId ? workDetails : project))
-        : [workDetails, ...current],
-    );
+    setWorkSavePending(true);
+    setStudioError("");
 
-    resetWorkDraft();
-    setActiveFilter("All work");
-    setStudioOpen(false);
+    try {
+      const endpoint = editingProjectId ? `/api/work/${encodeURIComponent(editingProjectId)}` : "/api/work";
+      const response = await fetch(endpoint, {
+        method: editingProjectId ? "PATCH" : "POST",
+        body: formData,
+      });
+      const data = (await response.json()) as { project?: PortfolioProject; error?: string };
+      if (!response.ok || !data.project) throw new Error(data.error || "Unable to save your work.");
+
+      setPortfolioProjects((current) =>
+        editingProjectId
+          ? current.map((project) => (project.id === editingProjectId ? data.project! : project))
+          : [data.project!, ...current],
+      );
+      resetWorkDraft();
+      setActiveFilter("All work");
+      setStudioOpen(false);
+    } catch (error) {
+      setStudioError(error instanceof Error ? error.message : "Unable to save your work.");
+    } finally {
+      setWorkSavePending(false);
+    }
   }
 
   return (
@@ -438,7 +455,7 @@ export default function Home() {
             <form className="work-studio" id="work-studio" onSubmit={handleAddWork}>
               <div className="studio-heading">
                 <div><span>Portfolio studio</span><h3>{editingProjectId ? "Update your work details." : "Add a photo and your edited-video link."}</h3></div>
-                <p>Your added work is saved privately in this browser until a full CMS is connected.</p>
+                <p>Saved work is stored securely online and appears for every visitor.</p>
               </div>
               <div className="studio-grid">
                 <label className="studio-upload">
@@ -460,8 +477,8 @@ export default function Home() {
                 </div>
               </div>
               <div className="studio-footer">
-                <span>{studioError || "Your image and video link stay on this device until you publish with a CMS."}</span>
-                <button className="button button-primary" type="submit">{editingProjectId ? "Save changes" : "Add to portfolio"} <span>→</span></button>
+                <span>{studioError || "Your image and video link will be saved to your live portfolio."}</span>
+                <button className="button button-primary" type="submit" disabled={workSavePending}>{workSavePending ? "Saving..." : editingProjectId ? "Save changes" : "Add to portfolio"} <span>→</span></button>
               </div>
             </form>
           )}

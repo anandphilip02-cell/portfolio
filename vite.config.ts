@@ -31,6 +31,14 @@ const localBindingConfig = {
         },
       ]
     : [],
+  r2_buckets: r2
+    ? [
+        {
+          binding: r2,
+          bucket_name: "portfolio-media",
+        },
+      ]
+    : [],
 };
 
 export default defineConfig(async () => {
