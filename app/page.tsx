@@ -85,6 +85,7 @@ export default function Home() {
   const [draftDescription, setDraftDescription] = useState("");
   const [draftVideoUrl, setDraftVideoUrl] = useState("");
   const [draftPhoto, setDraftPhoto] = useState("");
+  const [draftCategory, setDraftCategory] = useState("Video");
   const [studioError, setStudioError] = useState("");
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [draftsLoaded, setDraftsLoaded] = useState(false);
@@ -193,6 +194,7 @@ export default function Home() {
     setDraftDescription("");
     setDraftVideoUrl("");
     setDraftPhoto("");
+    setDraftCategory("Video");
     setStudioError("");
     setEditingProjectId(null);
   }
@@ -215,6 +217,7 @@ export default function Home() {
     setDraftDescription(project.copy);
     setDraftVideoUrl(project.videoUrl || "");
     setDraftPhoto(project.image || "");
+    setDraftCategory(project.category);
     setStudioError("");
     setEditingProjectId(project.id);
     setStudioOpen(true);
@@ -263,7 +266,7 @@ export default function Home() {
 
     const workDetails: PortfolioProject = {
       id: editingProjectId || "work-" + Date.now(),
-      category: "Video",
+      category: draftCategory,
       title: draftTitle.trim(),
       client: draftClient.trim() || "Personal work",
       year: "Local draft",
@@ -445,6 +448,13 @@ export default function Home() {
                 <div className="studio-fields">
                   <label>Project title<input required value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} placeholder="e.g. Restaurant reel campaign" /></label>
                   <label>Client or brand<input value={draftClient} onChange={(event) => setDraftClient(event.target.value)} placeholder="e.g. Personal work" /></label>
+                  <label>Category
+                    <select value={draftCategory} onChange={(event) => setDraftCategory(event.target.value)}>
+                      <option value="SEO">SEO</option>
+                      <option value="Content">Content</option>
+                      <option value="Video">Video</option>
+                    </select>
+                  </label>
                   <label className="studio-wide">Edited video link<input required type="url" value={draftVideoUrl} onChange={(event) => setDraftVideoUrl(event.target.value)} placeholder="https://youtube.com/... or Instagram/Vimeo/Drive link" /></label>
                   <label className="studio-wide">Short description<textarea value={draftDescription} onChange={(event) => setDraftDescription(event.target.value)} placeholder="What was the idea, edit, or result?" rows={3} /></label>
                 </div>
